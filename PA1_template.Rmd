@@ -8,18 +8,111 @@ output:
 
 ## Loading and preprocessing the data
 
+Load the data and look at it via str and summary.
 
+```{r}
+activity <- read.csv("activity/activity.csv")
+str(activity)
+summary(activity)
+```
+
+The following code shows that there are 2304 missing values and these consist off all 288 values for 8 days.
+
+```{r}
+sum(is.na(activity$steps))
+nas <- is.na(activity$steps)
+nas_per_day <- aggregate(nas ~ date, activity, sum)
+print(nas_per_day[nas_per_day$nas > 0,])
+```
 
 ## What is mean total number of steps taken per day?
 
+Aggregate steps by date.  Note that the steps_per_day does not contain the 8 days that only have missing data.
 
+
+```{r}
+steps_per_day <- aggregate(steps ~ date, activity, sum)
+steps_per_day$steps
+```
+
+Draw a histogram and calculate mean and median to be 10766.19 and 10765, respectively.
+
+```{r}
+hist1 <- hist(steps_per_day$steps, main = paste("Histogram of Total Steps per Day"), xlab="Number of Steps")
+mean1 <- mean(steps_per_day$steps)
+mean1
+med1  <- median(steps_per_day$steps)
+med1
+```
 
 ## What is the average daily activity pattern?
 
+Graph the average number of step by interval over all days.
 
+```{r}
+steps_by_interval <- aggregate(steps ~ interval, activity, mean)
+plot(steps_by_interval$interval, steps_by_interval$steps, type="l", xlab="Interval", ylab="Number of Steps", main="Average Number of Steps per Day by Interval")
+```
+
+The following shows that the maximum number of steps is 206.1698 and that occurs during interval 835.
+
+```{r}
+max_step <- max(steps_by_interval$steps)
+max_interval <- steps_by_interval$interval[steps_by_interval$step == max_step]
+max_step
+max_interval
+```
 
 ## Imputing missing values
 
+As previously shown, the following code shows that there are 2304 missing values and these consist off all 288 values for 8 days.
 
+```{r}
+sum(is.na(activity$steps))
+nas <- is.na(activity$steps)
+nas_per_day <- aggregate(nas ~ date, activity, sum)
+print(nas_per_day[nas_per_day$nas > 0,])
+```
+
+Replace missing values with average number of steps for each interval over all of the days.
+
+```{r}
+activity2<- activity
+nas <- is.na(activity2$steps)
+avg_interval<- tapply(activity2$steps, activity2$interval, mean, na.rm=TRUE, simplify = TRUE)
+#avg_interval <- steps_by_interval$steps
+activity2$steps[nas] <- avg_interval[as.character(activity2$interval[nas])]
+sum(is.na(activity2$steps))
+```
+
+```{r}
+steps_per_day2 <- aggregate(steps ~ date, activity2, sum)
+hist2 <- hist(steps_per_day2$steps, main = paste("Histogram of Total Steps per Day"), xlab="Number of Steps")
+mean2 <- mean(steps_per_day2$steps)
+med2  <- median(steps_per_day2$steps)
+```
+
+The following code shows that imputing missing values added data for the 8 days that were previously missing.  Since the imputted values for each interval was equal to the mean of that interval over all of the days which did have data, it would reason that the 8 missing days had the mean daily number of steps.  Hence, those 8 days were added to the central span in the histogram. The mean remained the same because the 8 additional days added had the mean number of daily steps.  The median became equal to the mean, apparently because one of those eight days added became the median.  This is all verified by the code below.
+
+```{r}
+hist1$counts
+hist2$counts
+mean1
+mean2
+med1
+med2
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+The following code and plot show that there are differences in activity patterns between weekdays and weekends. On weekdays, the activity starts a bit after 5 AM and spikes between about 8 AM and 9 AM.  On weekends, the activity starts a bit later, around 7 or 8 AM, and is a bit higher on average for the rest of the day until it drops off at about 10 PM.
+
+```{r}
+activity2$weekday <- weekdays(as.Date(activity2$date))
+activity2$dow <- "Weekday"
+activity2$dow[activity2$weekday=="Saturday" | activity2$weekday=="Sunday"] <- "Weekend"
+steps_by_interval_i <- aggregate(steps ~ interval + dow, activity2, mean)
+
+library(lattice)
+xyplot(steps_by_interval_i$steps ~ steps_by_interval_i$interval|steps_by_interval_i$dow, main="Average Steps per Day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
+```
